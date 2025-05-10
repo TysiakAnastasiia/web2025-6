@@ -4,6 +4,7 @@ const path = require('path');
 const multer = require('multer');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const fs = require('fs');
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -38,8 +39,26 @@ if (!host || !port || !cache) {
     process.exit(1);
 }
 
-// Масив для зберігання нотаток
-let notes = [];
+// Шлях до файлу для зберігання нотаток
+const notesFilePath = path.join(cache, 'notes.json');
+
+// Функція для зчитування нотаток із файлу
+function readNotesFromFile() {
+    if (fs.existsSync(notesFilePath)) {
+        const rawData = fs.readFileSync(notesFilePath);
+        return JSON.parse(rawData);
+    }
+    return [];
+}
+
+// Функція для збереження нотаток у файл
+function saveNotesToFile(notes) {
+    fs.writeFileSync(notesFilePath, JSON.stringify(notes, null, 2));
+}
+
+// Завантаження нотаток з файлу при старті сервера
+let notes = readNotesFromFile();
+
 app.get('/', (req, res) => {
     res.redirect('/UploadForm.html');
 });
@@ -105,6 +124,7 @@ app.put('/notes/:name', express.text(), (req, res) => {
     }
 
     note.text = newText;
+    saveNotesToFile(notes); // зберігаємо оновлені нотатки
     return res.send(note);
 });
 
@@ -133,6 +153,7 @@ app.delete('/notes/:name', (req, res) => {
         return res.status(404).send('Not found');
     }
     notes.splice(noteIndex, 1);
+    saveNotesToFile(notes); // зберігаємо після видалення
     return res.status(204).send();
 });
 
@@ -195,6 +216,7 @@ app.post('/write', upload.none(), (req, res) => {
     }
 
     notes.push({ name: note_name, text: note });
+    saveNotesToFile(notes); // зберігаємо нову нотатку
     return res.status(201).send('Created');
 });
 
